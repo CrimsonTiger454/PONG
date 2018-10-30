@@ -1,11 +1,17 @@
 import React, { Component } from "react";
+import axios from "axios";
 
 class GameCanvas extends Component {
   constructor() {
     super();
-    this.deadBalls =  [];
+    this.deadBalls =  []; // I belive that this is the source of the memory leak, 
+    //because the original code was never reseting or clearing this array, it would just grow bigger and sap more and more memrory.
+    // clearing this array after every game should fix the issue.
     this.maxScore = null;
     this.initVelocity = null;
+    this.ballData = {};
+    this.paddle1Data = {};
+    this.paddle2Data = {};
   }
 
 
@@ -20,11 +26,127 @@ class GameCanvas extends Component {
 
 
   resetGame () {
-    this.deadBalls = [];
+    this.deadBalls = []; //clearing the deadballs array after each game should clear up memory leak.
     this.maxScore = null;
     this.initVelocity = null;
     this.p1Score = 0;
     this.p2Score = 0;
+    window.location.reload(); /*I added this as a quick solution to my timeout, which I couldn't get to stop running after a game ended.
+    Which negates the reset values and deadball clear. I just wasn't sure how to get the set timeout loop to end */
+  }
+
+  ballDataChange (ballObj) {
+    if(ballObj.velocityX) {
+      this.gameBall.velocityX = ballObj.velocityX;
+    }
+
+    if(ballObj.velocityY) {
+      this.gameBall.velocityY = ballObj.velocityY;
+    }
+
+    if(ballObj.height) {
+      this.gameBall.height = ballObj.height;
+    }
+
+    if(ballObj.width) {
+      this.gameBall.width = ballObj.width;
+    }
+
+    if(ballObj.color) {
+      this.gameBall.color  = `#${ballObj.color.hex}`;
+
+    }
+  }
+
+  p1DataChange (p1Obj) {
+    if(p1Obj.velocityX) {
+      this.player1.velocityX = p1Obj.velocityX;
+    }
+
+    if(p1Obj.velocityY) {
+      this.player1.velocityY = p1Obj.velocityY;
+    }
+
+    if(p1Obj.height) {
+      this.player1.height = p1Obj.height;
+    }
+
+    if(p1Obj.width) {
+      this.player1.width = p1Obj.width;
+    }
+
+    if(p1Obj.color) {
+      this.player1.color  = `#${p1Obj.color.hex}`;
+    }
+  }
+
+  p2DataChange(p2Obj) {
+    if(p2Obj.velocityX) {
+      this.player2.velocityX = p2Obj.velocityX;
+    }
+
+    if(p2Obj.velocityY) {
+      this.player2.velocityY = p2Obj.velocityY;
+    }
+
+    if(p2Obj.height) {
+      this.player2.height = p2Obj.height;
+    }
+
+    if(p2Obj.width) {
+      this.player2.width = p2Obj.width;
+    }
+
+    if(p2Obj.color) {
+      this.player2.color  = `#${p2Obj.color.hex}`;
+
+    }
+  }
+
+  //recursion weeeeee
+  getGameData () {
+    axios.get('https://wwwforms.suralink.com/pong.php?accessToken=pingPONG').then((res) => {
+      let {newDelay} = res.data.gameData;
+      let {gameData} = res.data;
+      console.log(newDelay)
+
+      if(this.props.gameActive === true ) {
+        setTimeout(() => {
+          this.getGameData();
+          console.log('timeout fired', gameData)
+          let {ball, paddle1, paddle2} = gameData;
+
+          //ball data check
+          if(ball.length === 0) {
+            console.log('ball will not change')
+          } else {
+            console.log('ball will change', ball);
+              this.ballDataChange(ball);
+          }
+
+          //paddle1 data check
+          if(paddle1.length === 0) {
+            console.log('paddle1 will not change')
+          } else {
+            console.log('paddle1 will change', paddle1);
+            this.p1DataChange(paddle1);
+          }
+
+          //paddle2 data check
+          if(paddle2.length === 0) {
+            console.log('paddle2 will not change')
+          } else {
+            console.log('paddle2 will change', paddle2)
+            this.p2DataChange(paddle2);
+          }
+
+        }, newDelay? newDelay : null);
+
+      } else {
+        return null;
+      }
+       
+    });
   }
 
   _initializeGameCanvas = () => {
@@ -36,6 +158,9 @@ class GameCanvas extends Component {
     this.p1Score = 0;
     this.p2Score = 0;
     this.keys = {};
+
+    // server request for game data
+    this.getGameData();
     
 
     // add keyboard input listeners to handle user interactions
@@ -51,7 +176,7 @@ class GameCanvas extends Component {
       y: 200,
       width: 15,
       height: 80,
-      color: "#FFF",
+      color: `${this.props.paddleColor}`,
       velocityY: 3
     });
     this.player2 = new this.GameClasses.Box({
@@ -59,7 +184,7 @@ class GameCanvas extends Component {
       y: 200,
       width: 15,
       height: 80,
-      color: "#FFF",
+      color: `${this.props.paddleColor}`,
       velocityY: 3
     });
     this.boardDivider = new this.GameClasses.Box({
@@ -255,7 +380,7 @@ class GameCanvas extends Component {
         height="500"
         style={{ background: "#12260e", border: "4px solid #FFF" }}
       />
-      <button onClick={() => {this.props.toggleGameActive(); this.resetGame()}}>END GAME</button>
+      <button onClick={() => {this.props.toggleGameActive(); this.resetGame();}}>END GAME</button>
       </div>
     );
   }
